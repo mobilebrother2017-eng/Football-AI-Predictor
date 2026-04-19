@@ -1,0 +1,44 @@
+# .github/workflows/auto_retrain.yml
+name: Weekly AI Auto-Retrain
+
+on:
+  schedule:
+    # ဤစနစ်သည် အပတ်စဉ် တနင်္လာနေ့တိုင်း မြန်မာစံတော်ချိန် မနက် ၆:၃၀ (00:00 UTC) တွင် အလိုအလျောက် အလုပ်လုပ်မည်
+    - cron: '0 0 * * 1'
+  workflow_dispatch: # ဤစာကြောင်းသည် GitHub ပေါ်မှနေ၍ ကိုယ်တိုင် manual နှိပ်၍ Run နိုင်ခွင့်ပေးသည်
+
+jobs:
+  retrain_and_update:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write # တွက်ချက်ပြီးသား Model ဖိုင်များကို GitHub ပေါ် ပြန်တင်ခွင့်ပေးရန်
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies (Library များသွင်းခြင်း)
+      run: |
+        pip install -r requirements.txt
+
+    - name: Run Auto-Retrain Script (AI ကို သင်ယူစေခြင်း)
+      run: |
+        python retrain.py
+
+    - name: Commit and Push Updated Models (မော်ဒယ်အသစ်များကို Save ခြင်း)
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # ပြောင်းလဲသွားသော .pkl ဖိုင်များ (AI Model များ) အားလုံးကို မှတ်သားမည်
+        git add *.pkl
+        
+        # အကယ်၍ ပြောင်းလဲမှုရှိပါက GitHub သို့ အလိုအလျောက် Upload လုပ်မည်
+        git diff --quiet && git diff --staged --quiet || git commit -m "🤖 Auto-retrained AI models with latest match data"
+        git push
