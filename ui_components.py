@@ -5,21 +5,39 @@ from analysis_engine import calculate_kelly_criterion
 def inject_custom_css():
     st.markdown("""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap');
-        html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
+        /* 🌟 ခလုတ်များကို 3D Glowing Effect ဖြစ်စေရန် */
+        div.stButton > button:first-child {
+            background: linear-gradient(90deg, #1cb5e0 0%, #000851 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 800;
+            padding: 0.6rem 1.2rem;
+            transition: all 0.3s ease 0s;
+        }
+        div.stButton > button:first-child:hover {
+            box-shadow: 0px 10px 20px rgba(28, 181, 224, 0.4);
+            transform: translateY(-3px); /* နှိပ်လိုက်လျှင် အပေါ်သို့ အနည်းငယ်ကြွတက်လာမည် */
+            color: #00FF00;
+        }
+
+        /* 🌟 Metrics များ (Odds အကွက်များ) ကို မှန်ကဲ့သို့ ကြည်လင်သော Glassmorphism Effect ပေးရန် */
         div[data-testid="metric-container"] {
-            background-color: #1E2130; padding: 15px; border-radius: 12px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); border-left: 5px solid #00E676;
-            transition: transform 0.3s ease;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
-        div[data-testid="metric-container"]:hover { transform: translateY(-5px); }
-        .stButton>button {
-            background: linear-gradient(135deg, #00C853 0%, #1B5E20 100%);
-            color: white; font-weight: 800; border-radius: 8px; border: none;
-            padding: 10px 24px; box-shadow: 0 4px 10px rgba(0, 200, 83, 0.4);
-            transition: all 0.3s ease;
+
+        /* 🌟 အဓိက ခေါင်းစဉ်များကို Gradient အရောင်ပြောင်းရန် */
+        h1, h2, h3 {
+            background: -webkit-linear-gradient(#00C9FF, #92FE9D);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: bold;
         }
-        .stButton>button:hover { transform: scale(1.02); box-shadow: 0 6px 15px rgba(0, 200, 83, 0.6); color: white; }
         </style>
     """, unsafe_allow_html=True)
 
