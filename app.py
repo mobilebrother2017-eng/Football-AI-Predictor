@@ -1,10 +1,9 @@
 import streamlit as st
 import pandas as pd
+import requests
 
-# 🌟 API Component အသစ်ကို ခေါ်ယူခြင်း
-from live_data_api import get_todays_fixtures 
-
-# Data & Logic Components များကို ခေါ်ယူခြင်း
+# 🌟 API နှင့် Custom Components များကို ခေါ်ယူခြင်း
+from live_data_api import get_todays_fixtures
 from data_loader import fetch_and_clean_data
 from main_predictor import predict_match
 from analysis_engine import (
@@ -12,31 +11,60 @@ from analysis_engine import (
     generate_league_table, calculate_xg_proxy, get_motivation_status,
     analyze_historical_context, predict_goals_poisson, analyze_specific_fixture_history
 )
-
-# 🎨 UI Components များကို ခေါ်ယူခြင်း
 from ui_components import (
     inject_custom_css, create_donut_chart, render_team_info_cards, 
     render_value_metrics, render_top_scores, create_radar_chart
 )
 
-# စာမျက်နှာ အပြင်အဆင် သတ်မှတ်ခြင်း
+# 1. Page Config အပြင်အဆင်
 st.set_page_config(page_title="Pro Football AI Predictor", page_icon="⚽", layout="wide")
+
+# ==========================================
+# 🔐 VIP LOGIN SYSTEM (လုံခြုံရေးအဆင့်)
+# ==========================================
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if not st.session_state.logged_in:
+    st.markdown("<h2 style='text-align: center;'>🔐 Elite AI Predictor - VIP Access Only</h2>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("login_form"):
+            st.info("ကျေးဇူးပြု၍ Username နှင့် Password ရိုက်ထည့်ပါ။")
+            username = st.text_input("👤 Username")
+            password = st.text_input("🔑 Password", type="password")
+            submit_login = st.form_submit_button("ဝင်မည် (Login)", use_container_width=True)
+
+            if submit_login:
+                try:
+                    valid_pass = st.secrets["passwords"][username]
+                    if password == valid_pass:
+                        st.session_state.logged_in = True
+                        st.rerun()
+                    else:
+                        st.error("❌ Password မှားနေပါသည်။")
+                except KeyError:
+                    st.error("❌ Username မရှိပါ။")
+    st.stop() # ဝင်ခွင့်မရသေးပါက အောက်က AI ကို အလုပ်မလုပ်အောင် တားထားမည်
+
+# ==========================================
+# 🚀 MAIN APP (Login ဝင်ပြီးမှသာ မြင်ရမည်)
+# ==========================================
+if st.sidebar.button("🚪 Logout (ထွက်မည်)"):
+    st.session_state.logged_in = False
+    st.rerun()
+
+# 🎨 လှပသော UI/UX CSS ကို ခေါ်ယူခြင်း
 inject_custom_css()
 
-# 🌟 မှတ်ဉာဏ်စနစ် (Session States) များ ကြေညာခြင်း
-if 'bet_slip' not in st.session_state:
-    st.session_state.bet_slip = []
-if 'show_results' not in st.session_state:
-    st.session_state.show_results = False
-if 'last_home' not in st.session_state:
-    st.session_state.last_home = ""
-if 'last_away' not in st.session_state:
-    st.session_state.last_away = ""
-# 🌟 API အတွက် မှတ်ဉာဏ်အသစ်
-if 'live_list' not in st.session_state:
-    st.session_state.live_list = []
+# မှတ်ဉာဏ်စနစ်များ (Memory States)
+if 'bet_slip' not in st.session_state: st.session_state.bet_slip = []
+if 'show_results' not in st.session_state: st.session_state.show_results = False
+if 'last_home' not in st.session_state: st.session_state.last_home = ""
+if 'last_away' not in st.session_state: st.session_state.last_away = ""
+if 'live_list' not in st.session_state: st.session_state.live_list = []
 
-# ဥရောပ ထိပ်သီးလိဂ် (၅) ခုစာရင်း[cite: 1]
+# လိဂ်များ
 SUPPORTED_LEAGUES = {
     "🇬🇧 Premier League (England)": "E0.csv",
     "🇪🇸 La Liga (Spain)": "SP1.csv",
@@ -46,7 +74,6 @@ SUPPORTED_LEAGUES = {
 }
 
 st.sidebar.image("https://cdn-icons-png.flaticon.com/512/1165/1165183.png", width=100)
-
 st.sidebar.header("🌍 Select League")
 selected_league_name = st.sidebar.selectbox("Choose a League", list(SUPPORTED_LEAGUES.keys()))
 selected_league_code = SUPPORTED_LEAGUES[selected_league_name]
@@ -68,7 +95,7 @@ with tab1:
     st.sidebar.markdown("---")
     st.sidebar.header("📋 Match Setup")
 
-    # 🌟 📡 Live API Fixtures Section 🌟
+    # 📡 Live API Fixtures Section
     st.sidebar.subheader("📡 Live Fixtures")
     if st.sidebar.button("🔄 Fetch Today's Matches", use_container_width=True):
         with st.sidebar:
@@ -82,7 +109,6 @@ with tab1:
 
     teams_list = get_current_teams(data_df)
     
-    # 🌟 အသင်းနာမည်များကို API မှရလာသည်များဖြင့် အလိုအလျောက် ချိန်ညှိခြင်း 🌟
     h_idx, a_idx = 0, 1
     if st.session_state.live_list:
         match_options = [m['Match'] for m in st.session_state.live_list]
@@ -90,7 +116,6 @@ with tab1:
         
         if selected_live != "-- Manual Select --":
             m_info = next(m for m in st.session_state.live_list if m['Match'] == selected_live)
-            # အနီးစပ်ဆုံးတူညီသော အသင်းနာမည်ကို CSV List ထဲမှ ရှာခြင်း
             for i, team in enumerate(teams_list):
                 if m_info['Home'] in team or team in m_info['Home']: h_idx = i
                 if m_info['Away'] in team or team in m_info['Away']: a_idx = i
@@ -98,11 +123,9 @@ with tab1:
     home_team = st.sidebar.selectbox("🏠 Home Team", teams_list, index=h_idx)
     away_team = st.sidebar.selectbox("✈️ Away Team", teams_list, index=a_idx)
 
-    # User က အသင်းတွေကို ပြောင်းရွေးလိုက်ရင် အဟောင်းတွေကို ဖျောက်ရန်[cite: 1]
     if home_team != st.session_state.last_home or away_team != st.session_state.last_away:
         st.session_state.show_results = False
 
-    # Data Calculations[cite: 1]
     auto_home_form, home_trend = calculate_form_and_trend(home_team, data_df)
     auto_away_form, away_trend = calculate_form_and_trend(away_team, data_df)
     auto_h2h, hist_h, hist_d, hist_a = calculate_h2h_stats(home_team, away_team, data_df)
@@ -131,6 +154,10 @@ with tab1:
     if st.session_state.show_results:
         with st.spinner(f'Processing data for {home_team} vs {away_team}...'):
             try:
+                # 🎈 UI/UX Balloons Effect (အောင်မြင်မှု Animation)
+                if predict_btn:
+                    st.balloons()
+
                 results = predict_match(home_odds, draw_odds, away_odds, auto_home_form, auto_away_form, auto_h2h, selected_league_code)
                 model_prob_h, model_prob_d, model_prob_a = results['Home'], results['Draw'], results['Away']
                 true_odds_h = 1 / model_prob_h if model_prob_h > 0 else 0
@@ -143,12 +170,10 @@ with tab1:
                 
                 st.markdown(f"## ⚔️ {home_team} vs {away_team}")
                 
-                # UI Renderings[cite: 1]
                 render_team_info_cards(home_team, away_team, home_motivation, away_motivation, 
                                        home_trend, away_trend, auto_home_form, auto_away_form, 
                                        home_xg_for, home_xg_against, away_xg_for, away_xg_against)
                 
-                # Strength Stats Calculation[cite: 1]
                 h_atk = min((home_xg_for / 3.0) * 100, 100)
                 a_atk = min((away_xg_for / 3.0) * 100, 100)
                 h_def = max(0, 100 - ((home_xg_against / 3.0) * 100))
@@ -176,7 +201,6 @@ with tab1:
 
                 render_value_metrics(home_odds, true_odds_h, model_prob_h)
                 
-                # Betting Insights[cite: 1]
                 if true_odds_h > home_odds:
                     st.error(f"🚫 **AVOID BET:** Negative Value! Real odds: {true_odds_h:.2f}, Bookie: {home_odds}.")
                 elif "High Motivation" in home_motivation and "Low Motivation" in away_motivation:
@@ -188,7 +212,6 @@ with tab1:
 
                 st.markdown("---")
                 
-                # Donut Charts[cite: 1]
                 st.markdown("### 📊 AI Match Predictions")
                 c1, c2, c3 = st.columns(3)
                 with c1:
@@ -209,7 +232,6 @@ with tab1:
 
                 st.markdown("---")
                 
-                # Accumulator Logic[cite: 1]
                 st.markdown("### ➕ Add to Accumulator")
                 acc1, acc2, acc3 = st.columns(3)
                 if acc1.button(f"Add {home_team} (Home)", key="h"):
@@ -221,6 +243,42 @@ with tab1:
                 if acc3.button(f"Add {away_team} (Away)", key="a"):
                     st.session_state.bet_slip.append({"Match": f"{home_team} vs {away_team}", "Pick": away_team, "Bookie Odds": away_odds, "AI True Odds": true_odds_a, "Probability (%)": model_prob_a * 100})
                     st.toast("Added Away Win!")
+
+                # ==========================================
+                # 🤖 TELEGRAM BOT INTEGRATION
+                # ==========================================
+                st.markdown("---")
+                st.markdown("### ✈️ Share to Telegram")
+                
+                if st.button("📢 Send Prediction to Telegram", use_container_width=True):
+                    tg_message = f"""
+🤖 **Elite AI Match Prediction** ⚽
+
+⚔️ **{home_team} vs {away_team}**
+🏆 League: {selected_league_name}
+
+📊 **AI Win Probability:**
+🏠 {home_team}: {model_prob_h * 100:.1f}%
+🤝 Draw: {model_prob_d * 100:.1f}%
+✈️ {away_team}: {model_prob_a * 100:.1f}%
+
+💡 **Top AI Tip:** {"🔥 Value Bet Detected!" if true_odds_h < home_odds else "⚖️ Normal Match"}
+
+*Powered by Elite Predictor AI* 🚀
+"""
+                    try:
+                        bot_token = st.secrets["TELEGRAM_BOT_TOKEN"]
+                        chat_id = st.secrets["TELEGRAM_CHAT_ID"]
+                        tg_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                        payload = {"chat_id": chat_id, "text": tg_message, "parse_mode": "Markdown"}
+                        
+                        res = requests.post(tg_url, json=payload)
+                        if res.status_code == 200:
+                            st.success("✅ Telegram သို့ အောင်မြင်စွာ ပို့ပြီးပါပြီ! သင့်ဖုန်းကို စစ်ကြည့်ပါ။")
+                        else:
+                            st.error(f"❌ Error: {res.text}")
+                    except Exception as e:
+                        st.error(f"Telegram Error: {e}")
 
             except Exception as e:
                 st.error(f"Analysis Error: {e}")
