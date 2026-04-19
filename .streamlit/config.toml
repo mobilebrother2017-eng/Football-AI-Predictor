@@ -1,0 +1,11 @@
+# .streamlit/config.toml
+[theme]
+# Neon Green ရောင် (ခလုတ်များနှင့် အဓိကနေရာများအတွက်)
+primaryColor = "#00FF00" 
+# နောက်ခံအမည်းရောင် (Premium Dark Mode)
+backgroundColor = "#0E1117"
+# ဘေးဘက် Sidebar နှင့် ကတ်များအတွက် ခပ်မှိုင်းမှိုင်း အရောင်
+secondaryBackgroundColor = "#1E2130"
+# စာသားအရောင် (အဖြူ)
+textColor = "#FAFAFA"
+font = "sans serif"
