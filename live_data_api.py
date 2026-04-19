@@ -2,79 +2,67 @@ import requests
 import streamlit as st
 from datetime import datetime
 
-# Streamlit Secrets မှ API Key ကို လှမ်းယူခြင်း (မရပါက ယာယီ API ကို သုံးမည်)
+# Streamlit Secrets မှ API Key ကို လှမ်းယူခြင်း
 try:
-    API_KEY = st.secrets["API_SPORTS_KEY"]
+    API_KEY = st.secrets["FOOTBALL_DATA_API_KEY"]
 except:
-    # ယာယီစမ်းသပ်ရန်
-    API_KEY = "f7dad2631e489455df6b63f5bc148dec"
+    API_KEY = "1fa5c122f54c43e98d08866baa536e44"
 
-HEADERS = {
-    "x-apisports-key": API_KEY
+# Football-Data.org အတွက် Header သတ်မှတ်ချက်
+HEADERS = { "X-Auth-Token": API_KEY }
+
+# ဤ API အတွက် League Codes (API-Sports နှင့် မတူပါ)
+LEAGUE_MAP = {
+    "E0.csv": "PL",   # Premier League
+    "SP1.csv": "PD",  # La Liga
+    "I1.csv": "SA",   # Serie A
+    "D1.csv": "BL1",  # Bundesliga
+    "F1.csv": "FL1"   # Ligue 1
 }
-
-# ဥရောပ ထိပ်သီးလိဂ် ၅ ခု၏ API IDs
-API_LEAGUE_IDS = {
-    "E0.csv": 39,    # Premier League (England)
-    "SP1.csv": 140,  # La Liga (Spain)
-    "I1.csv": 135,   # Serie A (Italy)
-    "D1.csv": 78,    # Bundesliga (Germany)
-    "F1.csv": 61     # Ligue 1 (France)
-}
-
-def get_current_season():
-    """လက်ရှိ ဘောလုံးရာသီကို အလိုအလျောက် တွက်ချက်ခြင်း (ဥပမာ- 25/26 ရာသီအတွက် 2025 ကိုယူမည်)"""
-    now = datetime.now()
-    if now.month < 8: # ဩဂုတ်လမတိုင်ခင်ဆိုလျှင် ယခင်နှစ်ရာသီကို ယူမည်
-        return str(now.year - 1)
-    return str(now.year)
 
 def get_todays_fixtures(league_code="E0.csv"):
-    """ရွေးချယ်ထားသော လိဂ်အတွက် ဒီနေ့ကန်မည့် ပွဲစဉ်များကို ဆွဲယူခြင်း"""
-    league_id = API_LEAGUE_IDS.get(league_code, 39)
-    today_date = datetime.today().strftime('%Y-%m-%d')
-    season = get_current_season()
+    """ဒီနေ့ကန်မည့် ပွဲစဉ်များကို Football-Data.org မှ ဆွဲယူခြင်း"""
+    api_league_code = LEAGUE_MAP.get(league_code, "PL")
     
-    url = "https://v3.football.api-sports.io/fixtures"
-    querystring = {"league": str(league_id), "season": season, "date": today_date} 
+    # ဒီနေ့ရက်စွဲကို ယူခြင်း
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    # ကမ္ဘာ့အဆင့် ပွဲစဉ်များကို လှမ်းယူမည့် URL
+    url = f"https://api.football-data.org/v4/competitions/{api_league_code}/matches"
+    
+    # ဤနေ့တွင် ကန်မည့်ပွဲများကိုသာ Filter လုပ်ခိုင်းခြင်း
+    params = {
+        "dateFrom": today,
+        "dateTo": today
+    }
     
     try:
-        response = requests.get(url, headers=HEADERS, params=querystring)
+        response = requests.get(url, headers=HEADERS, params=params)
         data = response.json()
         
         fixtures = []
-        if data.get('response'):
-            for match in data['response']:
-                fixture_id = match['fixture']['id']
-                home_team = match['teams']['home']['name']
-                away_team = match['teams']['away']['name']
-                match_status = match['fixture']['status']['short']
-                # အချိန်ကို နာရီနှင့် မိနစ်သာ ယူရန် (ဥပမာ - 19:30)
-                match_time = match['fixture']['date'][11:16] 
+        if 'matches' in data:
+            for match in data['matches']:
+                home_team = match['homeTeam']['shortName'] or match['homeTeam']['name']
+                away_team = match['awayTeam']['shortName'] or match['awayTeam']['name']
+                match_time = match['utcDate'][11:16] # အချိန်ယူခြင်း
                 
                 fixtures.append({
-                    "Fixture_ID": fixture_id,
                     "Match": f"{home_team} vs {away_team}",
                     "Home": home_team,
                     "Away": away_team,
                     "Time": match_time,
-                    "Status": match_status
+                    "Status": match['status']
                 })
         return fixtures
     except Exception as e:
-        print(f"API Error: {e}")
+        st.error(f"API Error: {e}")
         return []
 
-# Terminal မှတဆင့် တိုက်ရိုက် စမ်းသပ်ရန်
 if __name__ == "__main__":
-    print("🔄 Testing API-Sports Connection...")
-    
-    # Premier League အတွက် စမ်းသပ်ခြင်း
-    matches = get_todays_fixtures("E0.csv") 
-    
-    if matches:
-        print(f"✅ ဒီနေ့ပွဲစဉ် စုစုပေါင်း ({len(matches)}) ပွဲ တွေ့ရှိပါသည်:\n")
-        for m in matches:
-            print(f"⏰ {m['Time']} | {m['Match']} ({m['Status']})")
+    print("🔄 Testing Football-Data.org API...")
+    res = get_todays_fixtures("E0.csv")
+    if res:
+        for p in res: print(f"✅ {p['Time']} | {p['Match']}")
     else:
-        print("❌ ဒီနေ့အတွက် ကန်မည့်ပွဲ မရှိပါ (သို့) API ချိတ်ဆက်မှု အဆင်မပြေသေးပါ။ (ဥရောပစံတော်ချိန်အရ ပွဲမရှိသေးခြင်း ဖြစ်နိုင်ပါသည်)")
+        print("ဒီနေ့အတွက် ပွဲစဉ်မရှိသေးပါ။ (သို့မဟုတ်) API Key ကန့်သတ်ချက် ရှိနေပါသည်။")
